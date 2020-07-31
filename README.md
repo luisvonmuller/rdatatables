@@ -4,7 +4,7 @@ This is the "backend" implementation for the datatables AJAX api on rust-lang.
 # Follow this on how to use: 
 * Add rdatatables = "0.0.1" on your crate;
 * use rdatatables::*; (You'll need all of it anyways);
-* First you will need a listner functiomn for your "ajax"-POST. 
+* First you will need a listener function for your "ajax"-POST. 
 e.g:
 
 ```rust
