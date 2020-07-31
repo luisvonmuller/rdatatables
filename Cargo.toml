@@ -2,8 +2,10 @@
 name = "rdatatables"
 version = "0.0.1"
 authors = ["luisvonmuller <luis@vonmuller.com.br>"]
-description = "A small implementation of datatables API (ssp) on rust-lang. (incomplete)."
+description = "A small implementation of datatables back-end API (ssp) on rust-lang. (incomplete)."
 repository = "https://github.com/luisvonmuller/rdatatables/"
+license = "GPL-2.0+ WITH Bison-exception-2.0"
+keywords = ["rocket", "diesel", "table", "datatablas", "rustdatatables", "rdt"]
 edition = "2018"
 
 [dependencies]
