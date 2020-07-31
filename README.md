@@ -31,6 +31,7 @@ pub fn list(
         "sysuser",
         collumn_mapping,
         query,
+        crate::establish_connection()
     ))
 }
 ```
