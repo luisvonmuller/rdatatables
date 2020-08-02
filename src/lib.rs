@@ -178,9 +178,8 @@ impl<'f> FromForm<'f> for DataTableQuery {
         let mut draw: Option<i32> = None;
         let mut start: Option<i32> = None;
         let mut length: Option<i32> = None;
-
-        /* Tmp columns holding vector */
-        let mut tmp_columns: Vec<(
+        
+        let tmp_columns: Vec<(
             Option<i32>,
             Option<String>,
             Option<bool>,
@@ -188,15 +187,6 @@ impl<'f> FromForm<'f> for DataTableQuery {
             Option<String>,
             Option<bool>,
         )> = vec![(None, None, None, None, None, None)];
-
-        let mut column_tuple: (
-            Option<i32>,
-            Option<String>,
-            Option<bool>,
-            Option<bool>,
-            Option<String>,
-            Option<bool>,
-        ) = (None, None, None, None, None, None);
 
         let mut order_tuple: (Option<i32>, Option<String>) = (None, None);
 
@@ -230,72 +220,6 @@ impl<'f> FromForm<'f> for DataTableQuery {
                 "search%5Bvalue%5D" if search_value.is_none() => {
                     let decoded = Some(item.value.url_decode().map_err(|_| ())?);
                     search_value = decoded;
-                }
-                key if key.contains("columns") => {
-                    let key = item.key.url_decode().unwrap();
-
-                    /* The first indexing dude */
-                    let (init, end) = (
-                        *&key.find("[").unwrap() as usize,
-                        *&key.find("]").unwrap() as usize,
-                    );
-
-                    /* Since the first returns [0.. we will need to add an postion to our array */
-                    let vector_index = &key.as_str()[(init + 1)..end].parse::<i32>().unwrap();
-
-                    for array_space in key.split(&format!("columns[{}]", vector_index)) {
-                        /* This must be refactored to a non-exaustive match statement */
-                        if array_space.contains("data") {
-                            let decoded = item.value.url_decode().map_err(|_| ())?;
-                            column_tuple.0 = Some(match decoded.parse::<i32>() {
-                                Ok(item_val) => item_val,
-                                Err(_err_msg) => 0,
-                            });
-                        }
-
-                        if array_space.contains("name") {
-                            column_tuple.1 = Some(item.value.url_decode().map_err(|_| ())?);
-                        }
-
-                        if array_space.contains("searchable") {
-                            column_tuple.2 = Some(
-                                item.value
-                                    .url_decode()
-                                    .map_err(|_| ())?
-                                    .parse::<bool>()
-                                    .unwrap(),
-                            );
-                        }
-                        if array_space.contains("orderable") {
-                            column_tuple.3 = Some(
-                                item.value
-                                    .url_decode()
-                                    .map_err(|_| ())?
-                                    .parse::<bool>()
-                                    .unwrap(),
-                            );
-                        }
-
-                        if array_space.contains("search][value]") {
-                            column_tuple.4 = Some(item.value.url_decode().map_err(|_| ())?);
-                        }
-
-                        if array_space.contains("search][regex]") {
-                            column_tuple.5 = Some(
-                                item.value
-                                    .url_decode()
-                                    .map_err(|_| ())?
-                                    .parse::<bool>()
-                                    .unwrap(),
-                            );
-                            /* Since we have parsed all fields of this tupple, we can now appent */
-                            tmp_columns.push(column_tuple);
-
-                            /* And also clean it for the next arrray space*/
-                            column_tuple = (None, None, None, None, None, None);
-                        }
-                    }
-                    /* Array index and now I'll keep going to search to next position values */
                 }
                 key if key.contains("order%5B0%5D") => {
                     if key.contains("order%5B0%5D%5Bcolumn%5D") {
