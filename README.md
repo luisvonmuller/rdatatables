@@ -8,91 +8,110 @@ This is the "backend" implementation for the datatables AJAX api on rust-lang.
 e.g:
 
 ```rust
-/* Your struct */
-use crate::models::DataTablesSysUserListing;
+/* Your datat structers */
+use crate::models::rdatatables::{
+    ClerksViewListing, ClerksViewListingClerkInfo, ClerksViewListingStatusClerk,
+};
 
 #[post("/list", data = "<query>")]
 pub fn list(
     _adminitrative: AdminUser,
     query: LenientForm<DataTableQuery>,
-) -> Json<OutcomeData<DataTablesSysUserListing>> {
-    /* Front-end to back-end column mapping */
-    let mut collumn_mapping = HashMap::new();
-
-    /* This hashmap matches the comming struct on the front-end, columns object array on js. */
-    collumn_mapping.insert(0, "user_name");
-    collumn_mapping.insert(1, "user_balance");
-    collumn_mapping.insert(2, "user_creation");
-    collumn_mapping.insert(3, "user_lasttimeonline");
-    collumn_mapping.insert(4, "user_status");
-    collumn_mapping.insert(5, "user_id");
-
-    Json(datatables_query::<DataTablesSysUserListing>(
-        "sysuser",
-        collumn_mapping,
-        query,
-        crate::establish_connection()
+) -> Json<
+    OutcomeData<(
+        ClerksViewListing,
+        ClerksViewListingStatusClerk,
+        ClerksViewListingClerkInfo,
+    )>,
+> {
+    Json(datatables_query::<(
+        ClerksViewListing,
+        ClerksViewListingStatusClerk,
+        ClerksViewListingClerkInfo,
+    )>(
+        Tables {
+            origin: ("sysuser", "user_id"), /* From */
+            fields: vec![
+                "clerk_info.clerk_image",
+                "sysuser.user_name",
+                "sysuser.user_uni",
+                "sysuser.user_balance",
+                "status_clerk.is_available",
+                "sysuser.user_status",
+                "sysuser.user_id",
+            ], /* Fields to seek for */
+            join_targets: Some(vec![ /* If you desire to not do a Join at all, just give a None here */
+                /* (join_type, (target, target_key), (origin, origin_key) */
+                ("inner", ("clerk_info", "user_id"), ("sysuser", "user_id")),
+                (
+                    "inner",
+                    ("status_clerk", "clerk_id"),
+                    ("sysuser", "user_id"),
+                ),
+            ]),
+            datatables_post_query: query.into_inner(), /* Incoming Query parses to the desired struct. */
+            query: None,                               /* Our builded query holder */
+        },
+        crate::establish_connection(),
     ))
 }
 ```
 
 * Then your struct (that must be QuerybleByName and also Identifiable), like this
 ```rust 
+
+/* ClerksViewListing (Implements joins) */
 #[derive(Debug, QueryableByName, Serialize, Clone)]
 #[table_name = "sysuser"]
-pub struct DataTablesSysUserListing {
+pub struct ClerksViewListing {
     pub user_name: String,
+    pub user_uni: Option<String>,
     pub user_balance: f64,
-    pub user_creation: NaiveDateTime,
-    pub user_lasttimeonline: Option<NaiveDateTime>,
-    pub user_status: Option<bool>,
     pub user_id: i32,
 }
+
+#[derive(Debug, QueryableByName, Serialize, Clone)]
+#[table_name = "status_clerk"]
+pub struct ClerksViewListingStatusClerk {
+    pub is_available: Option<i32>,
+}
+
+
+#[derive(Debug, QueryableByName, Serialize, Clone)]
+#[table_name = "clerk_info"]
+pub struct ClerksViewListingClerkInfo {
+    pub clerk_image: Option<String>,
+}
+
 
 ```
 * Your front-end association with datatable must be something like this, do not forget about the "post" and "columns",
 ```js
 $('#clientsTable').DataTable({
 			"serverSide": true,
-			"ajax": {
-				url: '/admin/clients/list',
-				type: 'POST',
-			},
-			"columns": [
-				{ "data": "user_name" },
-				{ "data": "user_balance", "render": (data, type, row) => {
-					return data.toFixed(2).replace('.', ',')
-				} },
-				{
-					"data": "user_creation", "render": (data, type, row) => {
-						return parseData(data)
-					}
-				},
-				{
-					"data": "user_lasttimeonline", "render": (data, type, row) => {
-						return parseData(data)
-					}
-				},
-				{
-					"data": "user_status", "render": (data, type, row) => {
-						return statusBtn(1, data)
-					}
-				},
-				{
-					"data": "user_id", "render": () => {
-						return optionsBtn(1)
-					}
-				}
-			],
 			"ordering": true,
 			"info": true,
-			"processing": true
+			"ajax":
+			{
+				url: "/admin/clerk/list",
+				type: "POST"
+			},
+			"columns": [
+				{ "data": "1.clerk_image" },
+				{ "data": "0.user_name" }, 
+				{ "data": "0.user_uni" },
+				{ "data": "0.user_balance" },
+				{ "data": "2.is_available" },
+				{ "data": "0.user_status" },
+				{ "data": "0.user_id" }, /* Stands for user_id */
+			]
 });
 
 ```
 
 Have fun. 
 follow me on twitter: @luisvonmuller 
+## I'm open to oportunities ;) luis@vonmuller.com.br
 
 Whats missing? 
 * Regex searching
