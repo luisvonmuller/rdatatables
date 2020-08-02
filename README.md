@@ -113,7 +113,8 @@ Have fun.
 follow me on twitter: @luisvonmuller 
 ## I'm open to oportunities ;) luis@vonmuller.com.br
 
-*this crate maybe open to SQL injections view the "search" field on the front-end datatables. This will be fixed as soon as possible. *
+###  this crate maybe be open to SQL injections view the "search" field on the front-end datatables. This will be fixed as soon as possible. - If your able to fix it for us, please, do!
+
 Whats missing? 
 * Regex searching
 * combinative column searching
