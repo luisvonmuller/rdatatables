@@ -1,12 +1,158 @@
-/* Form */
-use rocket::request::LenientForm;
+
+
+/*
+8888888b.        8888888b.        d8888 88888888888     d8888 888888b.   888      8888888888 .d8888b.
+888   Y88b       888  "Y88b      d88888     888        d88888 888  "88b  888      888       d88P  Y88b
+888    888       888    888     d88P888     888       d88P888 888  .88P  888      888       Y88b.
+888   d88P       888    888    d88P 888     888      d88P 888 8888888K.  888      8888888    "Y888b.
+8888888P"        888    888   d88P  888     888     d88P  888 888  "Y88b 888      888           "Y88b.
+888 T88b  888888 888    888  d88P   888     888    d88P   888 888    888 888      888             "888
+888  T88b        888  .d88P d8888888888     888   d8888888888 888   d88P 888      888       Y88b  d88P
+888   T88b       8888888P" d88P     888     888  d88P     888 8888888P"  88888888 8888888888 "Y8888P"
+*/
+
+/* Form diesel and serve imports */
+use diesel::*;
 use rocket::request::{FormItems, FromForm};
 use serde::Serialize;
-use std::collections::HashMap;
-use diesel::*;
+use diesel::sql_types::BigInt;
+
+/* This one stands for the r-datatables counting struct */
+#[derive(QueryableByName)]
+pub struct Count {
+    #[sql_type = "BigInt"]
+    pub count: i64,
+}
+
+/*
+    "Tables" explanation:
+    ===================
+    -> Data Structure comes like:
+      (JoinType, (dest_table_name, dest_table_key), (origin_table_name, origin_table_key))
+
+    -> Implemented Struct will return something like:
+    "
+        `JoinType` JOIN `dest_table_name`
+                ON `origin_table_name`.`origin_table_key` = `table2`.`common_field` *( n-th)
+    "
+*/
+
+#[derive(Debug, Clone)]
+pub struct Tables<'a> {
+    pub origin: (&'a str, &'a str), /* From */
+    pub fields: Vec<&'a str>,       /* Fields to seek for */
+    pub join_targets: Option<Vec<(&'a str, (&'a str, &'a str), (&'a str, &'a str))>>, /* Join Targets explained over here */
+    pub datatables_post_query: DataTableQuery, /* Incoming Query */
+    pub query: Option<String>, /* Our builded query holder */
+}
+
+impl<'a> Tables<'a> {
+    pub fn generate(&mut self) -> String {
+        match self.datatables_post_query.order[0].0 {
+            Some(column_index_to_order) => format!(
+                "{} ORDER BY {} {}",
+                self.select().join().where_like().query.to_owned().unwrap(),
+                self.fields[column_index_to_order as usize],
+                &self.datatables_post_query.order[0]
+                    .1
+                    .as_ref()
+                    .unwrap()
+                    .to_uppercase()
+            ),
+            None => self.select().join().where_like().query.to_owned().unwrap(),
+        }
+    }
+
+    /* Returns fields for the query */
+    pub fn select(&mut self) -> Self {
+        let stmt = &self
+            .fields
+            .iter()
+            .map(|field| format!("{}, ", field))
+            .collect::<String>();
+
+        self.query = Some(
+            format!(
+                "SELECT {} FROM {}",
+                stmt[..(stmt.len() - 2)].to_owned(),
+                self.origin.0
+            )
+            .to_owned(),
+        );
+
+        self.to_owned()
+    }
+
+    pub fn where_like(&mut self) -> Self {
+        /* #Where like:
+        ## This function receives self (as all of the SQL generators) and
+        reparses the content of "where" from the incoming Datatable query
+        to do a seeking for desired information over all table fields
+
+        returns... gues what? self!
+        */
+        let stmt = self
+            .fields
+            .iter()
+            .map(|field| {
+                format!(
+                    " CAST({} as TEXT) LIKE '%{}%' OR",
+                    field,
+                    self.datatables_post_query.search[0].0.as_ref().unwrap()
+                )
+            })
+            .collect::<String>();
+
+        self.query = Some(
+            format!(
+                "{} WHERE {}",
+                self.query.to_owned().unwrap(),
+                stmt[..(stmt.len() - 2)].to_owned()
+            )
+            .to_owned(),
+        );
+
+        self.to_owned()
+    }
+
+    pub fn join(&mut self) -> Self {
+        /*
+        # How this works?
+           ## We will match the existing needing of appending the "join statement" or not
+            As well we do on other self sql generators functions, we'll opt to not do an if stmt
+            for seeking the "last" target and doing a exactly cut for the string to append.
+
+            Returns self.
+        */
+        match self.join_targets {
+            Some(_) => {
+                let stmt = self
+                    .join_targets
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|(join_type, (target, target_key), (origin, origin_key))| {
+                        format!(
+                            "{} JOIN {} ON {}.{} = {}.{} ",
+                            join_type.to_uppercase(), target, origin, origin_key, target, target_key,
+                        )
+                    })
+                    .collect::<String>();
+
+                self.query = Some(
+                    format!("{}  {}", self.query.to_owned().unwrap(), stmt.to_owned()).to_owned(),
+                );
+
+                self.to_owned()
+            }
+            None => self.to_owned(),
+        }
+    }
+}
+
 
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataTableQuery {
     pub draw: i32, /* Stands for the n-th time that we're drawing */
     pub columns: Vec<(
@@ -129,11 +275,11 @@ impl<'f> FromForm<'f> for DataTableQuery {
                                     .unwrap(),
                             );
                         }
-                        
+
                         if array_space.contains("search][value]") {
                             column_tuple.4 = Some(item.value.url_decode().map_err(|_| ())?);
                         }
-                        
+
                         if array_space.contains("search][regex]") {
                             column_tuple.5 = Some(
                                 item.value
@@ -144,7 +290,8 @@ impl<'f> FromForm<'f> for DataTableQuery {
                             );
                             /* Since we have parsed all fields of this tupple, we can now appent */
                             tmp_columns.push(column_tuple);
-                            /* And also clean it */
+
+                            /* And also clean it for the next arrray space*/
                             column_tuple = (None, None, None, None, None, None);
                         }
                     }
@@ -207,83 +354,31 @@ pub struct OutcomeData<T> {
     pub data: Vec<T>,
 }
 
-use diesel::sql_types::BigInt;
-#[derive(QueryableByName)]
-pub struct Count {
-    #[sql_type = "BigInt"]
-    pub count: i64,
-}
-
 pub fn datatables_query<
     T: diesel::deserialize::QueryableByName<diesel::pg::Pg> + std::fmt::Debug + std::clone::Clone,
 >(
-    table: &str,
-    columns: HashMap<i32, &str>,
-    incoming_query: LenientForm<DataTableQuery>,
+    table: Tables,
     conn: PgConnection,
 ) -> OutcomeData<T> {
-
-    let mut fields: String = String::from("");
-
-    for (_pos, field) in columns.clone() {
-        if fields.len() > 1 {
-            fields = format!("{}, {}", fields, field);
-        } else {
-            fields = field.to_string();
-        }
-    }
-
-    let mut fields_like: String = String::from("");
-
-    for (_pos, field) in columns.clone() {
-        if fields_like.len() > 1 {
-            fields_like = format!(
-                "{} OR CAST({} AS TEXT) LIKE '%{}%'",
-                fields_like,
-                field,
-                incoming_query.search[0].clone().0.unwrap()
-            );
-        } else {
-            fields_like = format!(
-                "WHERE CAST({} as TEXT) LIKE '%{}%'",
-                field,
-                incoming_query.search[0].clone().0.unwrap()
-            );
-        }
-    }
-
-    let query: String = match &incoming_query.order[0].0 {
-        Some(column_index_to_order) => format!(
-            "SELECT {} FROM {} {} ORDER BY {} {}",
-            fields.clone(),
-            table.clone(),
-            fields_like.clone(),
-            columns[column_index_to_order],
-            &incoming_query.order[0].1.as_ref().unwrap().to_uppercase()
-        )
-        .to_owned(),
-        None => format!("SELECT {} FROM {}", fields, table,).to_owned(),
-    };
-
     let (data_results, total_data): (Vec<T>, Count) = (
-        sql_query(query.clone())
+        sql_query(table.clone().generate())
             .load(&conn)
             .expect("Failed to retrieve information"),
-        sql_query(format!("SELECT COUNT(*) FROM {}", table))
+        sql_query(format!("SELECT COUNT(*) FROM {}", table.origin.0))
             .load::<Count>(&conn)
             .expect("Query failed")
             .pop()
             .expect("No rows"),
     );
 
-    let tmp_results = data_results[(incoming_query.start as usize)..].to_vec();
+    let tmp_results = data_results[(table.datatables_post_query.start as usize)..].to_vec();
 
     OutcomeData::<T> {
-        draw: incoming_query.draw,                  /* N-th draw */
+        draw: table.datatables_post_query.draw,     /* N-th draw */
         recordsTotal: total_data.count,             /* How much we have on this table */
         recordsFiltered: data_results.len() as i32, /* How much query has returned */
-        data: if tmp_results.len() >= (incoming_query.length as usize)  {
-            tmp_results[..(incoming_query.length as usize)].to_vec()
+        data: if tmp_results.len() >= (table.datatables_post_query.length as usize) {
+            tmp_results[..(table.datatables_post_query.length as usize)].to_vec()
         } else {
             tmp_results.to_vec()
         },
