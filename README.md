@@ -116,5 +116,4 @@ follow me on twitter: @luisvonmuller
 Whats missing? 
 * Regex searching
 * combinative column searching
-* Fixing performance issues over the iterator of column parser
-* Other small things like getting rid of rocket full crate as a dependence. (We're using it now for Forms implementations.)
+* Fixing performance issues over the iterator of column parser (By now the lib is parsing columns by an exaustive sequencial IF statement. Must be fixed.)
