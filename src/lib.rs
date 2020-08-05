@@ -18,7 +18,7 @@ use serde::Serialize;
 use diesel::sql_types::BigInt;
 
 /* This one stands for the r-datatables counting struct */
-#[derive(QueryableByName)]
+#[derive(QueryableByName, Serialize)]
 pub struct Count {
     #[sql_type = "BigInt"]
     pub count: i64,
