@@ -44,7 +44,7 @@ pub struct Tables<'a> {
     pub join_targets: Option<Vec<(&'a str, (&'a str, &'a str), (&'a str, &'a str))>>, /* Join Targets explained over here */
     pub datatables_post_query: DataTableQuery, /* Incoming Query */
     pub query: Option<String>, /* Our builded query holder */
-    pub condition: Option<Vec<(String, String, String)>>, /* (And/Or, Field_Name, Value) */
+    pub condition: Option<Vec<(&'a str, &'a str, &'a str)>>, /* (And/Or, Field_Name, Value) */
 }
 
 impl<'a> Tables<'a> {
