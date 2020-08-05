@@ -106,7 +106,7 @@ impl<'a> Tables<'a> {
 
         self.query = Some(
             format!(
-                "{} WHERE {}",
+                "{} WHERE ({})",
                 self.query.to_owned().unwrap(),
                 stmt[..(stmt.len() - 2)].to_owned()
             )
@@ -154,7 +154,7 @@ impl<'a> Tables<'a> {
         match self.condition {
             Some(_) => {
                 let stmt = self.condition.as_ref().unwrap().iter().map(|(sub_cond, target, value)| {
-                    format!(" {} CAST({} AS TEXT) LIKE '%{}%'", sub_cond.to_uppercase(), target, &value.to_string())
+                    format!("{} {} = '{}'", sub_cond.to_uppercase(), target, &value.to_string())
                 }).collect::<String>();
 
                 self.query = Some(
@@ -305,6 +305,7 @@ pub fn datatables_query<
     table: Tables,
     conn: PgConnection,
 ) -> OutcomeData<T> {
+    println!("{}", table.clone().generate());
     let (data_results, total_data): (Vec<T>, Count) = (
         sql_query(table.clone().generate())
             .load(&conn)
