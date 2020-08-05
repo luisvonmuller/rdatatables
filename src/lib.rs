@@ -154,7 +154,7 @@ impl<'a> Tables<'a> {
         match self.condition {
             Some(_) => {
                 let stmt = self.condition.as_ref().unwrap().iter().map(|(sub_cond, target, value)| {
-                    format!(" {} CAST({} AS TEXT)=LIKE(%{}%)", sub_cond.to_uppercase(), target, &value.to_string())
+                    format!(" {} CAST({} AS TEXT) LIKE '%{}%'", sub_cond.to_uppercase(), target, &value.to_string())
                 }).collect::<String>();
 
                 self.query = Some(

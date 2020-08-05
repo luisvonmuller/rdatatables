@@ -1,6 +1,6 @@
 [package]
 name = "rdatatables"
-version = "0.0.5"
+version = "0.0.7"
 authors = ["luisvonmuller <luis@vonmuller.com.br>"]
 description = "A small implementation of datatables back-end API (ssp) on rust-lang. (incomplete)."
 repository = "https://github.com/luisvonmuller/rdatatables/"
