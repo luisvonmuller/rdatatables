@@ -44,6 +44,7 @@ pub struct Tables<'a> {
     pub join_targets: Option<Vec<(&'a str, (&'a str, &'a str), (&'a str, &'a str))>>, /* Join Targets explained over here */
     pub datatables_post_query: DataTableQuery, /* Incoming Query */
     pub query: Option<String>, /* Our builded query holder */
+    pub condition: Option<Vec<(String, String, String)>>, /* (And/Or, Field_Name, Value) */
 }
 
 impl<'a> Tables<'a> {
@@ -51,7 +52,7 @@ impl<'a> Tables<'a> {
         match self.datatables_post_query.order[0].0 {
             Some(column_index_to_order) => format!(
                 "{} ORDER BY {} {}",
-                self.select().join().where_like().query.to_owned().unwrap(),
+                self.select().join().where_like().condition().query.to_owned().unwrap(),
                 self.fields[column_index_to_order as usize],
                 &self.datatables_post_query.order[0]
                     .1
@@ -59,7 +60,7 @@ impl<'a> Tables<'a> {
                     .unwrap()
                     .to_uppercase()
             ),
-            None => self.select().join().where_like().query.to_owned().unwrap(),
+            None => self.select().join().where_like().condition().query.to_owned().unwrap(),
         }
     }
 
@@ -146,6 +147,26 @@ impl<'a> Tables<'a> {
                 self.to_owned()
             }
             None => self.to_owned(),
+        }
+    }
+
+    pub fn condition(&mut self) -> Self {
+        match self.condition {
+            Some(_) => {
+                let stmt = self.condition.as_ref().unwrap().iter().map(|(sub_cond, target, value)| {
+                    format!(" {} CAST({} AS TEXT)=LIKE(%{}%)", sub_cond.to_uppercase(), target, &value.to_string())
+                }).collect::<String>();
+
+                self.query = Some(
+                    format!("{}  {}", self.query.to_owned().unwrap(), stmt.to_owned()).to_owned(),
+                );
+
+                self.to_owned()
+    
+            }
+            None => {
+                self.to_owned()
+            }
         }
     }
 }
