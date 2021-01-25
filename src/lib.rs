@@ -45,6 +45,7 @@ pub struct Tables<'a> {
     pub datatables_post_query: DataTableQuery, /* Incoming Query */
     pub query: Option<String>, /* Our builded query holder */
     pub condition: Option<Vec<(&'a str, &'a str, &'a str)>>, /* (And/Or, Field_Name, Value) */
+    pub distinct: Option<bool>,
 }
 
 impl<'a> Tables<'a> {
@@ -75,6 +76,10 @@ impl<'a> Tables<'a> {
         self.query = Some(
             format!(
                 "SELECT {} FROM {}",
+                match self.distinct {
+                    Some(_) => {"DISTINCT"}
+                    None => {""}
+                },
                 stmt[..(stmt.len() - 2)].to_owned(),
                 self.origin.0
             )
