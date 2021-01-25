@@ -74,8 +74,7 @@ impl<'a> Tables<'a> {
             .collect::<String>();
 
         self.query = Some(
-            format!(
-                "SELECT {} FROM {}",
+            format!("SELECT {} {} FROM {}",
                 match self.distinct {
                     Some(_) => {"DISTINCT"}
                     None => {""}
